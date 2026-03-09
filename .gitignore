@@ -1,0 +1,24 @@
+.DS_Store
+
+# VS Code workspace noise
+.vscode/*
+!.vscode/settings.json
+
+# ESP-IDF build artifacts
+**/build/
+**/sdkconfig
+**/sdkconfig.old
+**/managed_components/
+**/dependencies.lock
+**/.idf_component_manager/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Logs and data dumps
+*.log
+*.csv
+*.tmp
