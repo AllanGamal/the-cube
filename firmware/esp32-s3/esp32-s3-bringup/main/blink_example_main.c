@@ -1,104 +1,169 @@
-/* Blink Example
-
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
-#include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "driver/i2c.h"
 #include "driver/gpio.h"
+#include "driver/ledc.h"
 #include "esp_log.h"
-#include "led_strip.h"
-#include "sdkconfig.h"
+#include <math.h>
+#include <stdint.h>
 
-static const char *TAG = "example";
+static const char *TAG = "bringup";
 
-/* Use project configuration menu (idf.py menuconfig) to choose the GPIO to blink,
-   or you can edit the following line and set a number here.
-*/
-#define BLINK_GPIO CONFIG_BLINK_GPIO
+static const gpio_num_t MOTOR_PWM_GPIO = GPIO_NUM_8;
+static const gpio_num_t MOTOR_DIR_GPIO = GPIO_NUM_10;
+static const gpio_num_t IMU_SDA_GPIO = GPIO_NUM_6;
+static const gpio_num_t IMU_SCL_GPIO = GPIO_NUM_7;
+static const uint32_t PWM_FREQUENCY_HZ = 20000;
+static const uint32_t PWM_DUTY_MAX_PERCENT = 5;
+static const float MAX_TILT_DEGREES = 30.0f;
+static const float TILT_DEADZONE_DEGREES = 3.0f;
+static const TickType_t CONTROL_LOOP_DELAY = pdMS_TO_TICKS(100);
 
-static uint8_t s_led_state = 0;
+static const i2c_port_t IMU_I2C_PORT = I2C_NUM_0;
+static const uint8_t MPU6050_ADDRESS = 0x68;
+static const uint8_t MPU6050_PWR_MGMT_1 = 0x6B;
+static const uint8_t MPU6050_ACCEL_XOUT_H = 0x3B;
+static const float MPU6050_ACCEL_SCALE = 16384.0f;
 
-#ifdef CONFIG_BLINK_LED_STRIP
-
-static led_strip_handle_t led_strip;
-
-static void blink_led(void)
+static void configure_i2c(void)
 {
-    /* If the addressable LED is enabled */
-    if (s_led_state) {
-        /* Set the LED pixel using RGB from 0 (0%) to 255 (100%) for each color */
-        led_strip_set_pixel(led_strip, 0, 16, 16, 16);
-        /* Refresh the strip to send data */
-        led_strip_refresh(led_strip);
-    } else {
-        /* Set all LED off to clear all pixels */
-        led_strip_clear(led_strip);
-    }
-}
-
-static void configure_led(void)
-{
-    ESP_LOGI(TAG, "Example configured to blink addressable LED!");
-    /* LED strip initialization with the GPIO and pixels number*/
-    led_strip_config_t strip_config = {
-        .strip_gpio_num = BLINK_GPIO,
-        .max_leds = 1, // at least one LED on board
+    const i2c_config_t config = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = IMU_SDA_GPIO,
+        .scl_io_num = IMU_SCL_GPIO,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = 400000,
     };
-#if CONFIG_BLINK_LED_STRIP_BACKEND_RMT
-    led_strip_rmt_config_t rmt_config = {
-        .resolution_hz = 10 * 1000 * 1000, // 10MHz
-        .flags.with_dma = false,
-    };
-    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
-#elif CONFIG_BLINK_LED_STRIP_BACKEND_SPI
-    led_strip_spi_config_t spi_config = {
-        .spi_bus = SPI2_HOST,
-        .flags.with_dma = true,
-    };
-    ESP_ERROR_CHECK(led_strip_new_spi_device(&strip_config, &spi_config, &led_strip));
-#else
-#error "unsupported LED strip backend"
-#endif
-    /* Set all LED off to clear all pixels */
-    led_strip_clear(led_strip);
+
+    ESP_ERROR_CHECK(i2c_param_config(IMU_I2C_PORT, &config));
+    ESP_ERROR_CHECK(i2c_driver_install(IMU_I2C_PORT, config.mode, 0, 0, 0));
 }
 
-#elif CONFIG_BLINK_LED_GPIO
-
-static void blink_led(void)
+static void wake_mpu6050(void)
 {
-    /* Set the GPIO level according to the state (LOW or HIGH)*/
-    gpio_set_level(BLINK_GPIO, s_led_state);
+    const uint8_t payload[] = {MPU6050_PWR_MGMT_1, 0x00};
+
+    ESP_ERROR_CHECK(i2c_master_write_to_device(
+        IMU_I2C_PORT,
+        MPU6050_ADDRESS,
+        payload,
+        sizeof(payload),
+        pdMS_TO_TICKS(100)));
 }
 
-static void configure_led(void)
+static void configure_motor_pwm(void)
 {
-    ESP_LOGI(TAG, "Example configured to blink GPIO LED!");
-    gpio_reset_pin(BLINK_GPIO);
-    /* Set the GPIO as a push/pull output */
-    gpio_set_direction(BLINK_GPIO, GPIO_MODE_OUTPUT);
+    const ledc_timer_config_t timer_config = {
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .duty_resolution = LEDC_TIMER_10_BIT,
+        .timer_num = LEDC_TIMER_0,
+        .freq_hz = PWM_FREQUENCY_HZ,
+        .clk_cfg = LEDC_AUTO_CLK,
+    };
+
+    const ledc_channel_config_t channel_config = {
+        .gpio_num = MOTOR_PWM_GPIO,
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .channel = LEDC_CHANNEL_0,
+        .intr_type = LEDC_INTR_DISABLE,
+        .timer_sel = LEDC_TIMER_0,
+        .duty = 0,
+        .hpoint = 0,
+    };
+
+    ESP_ERROR_CHECK(ledc_timer_config(&timer_config));
+    ESP_ERROR_CHECK(ledc_channel_config(&channel_config));
 }
 
-#else
-#error "unsupported LED type"
-#endif
+static void configure_motor_direction(void)
+{
+    ESP_ERROR_CHECK(gpio_reset_pin(MOTOR_DIR_GPIO));
+    ESP_ERROR_CHECK(gpio_set_direction(MOTOR_DIR_GPIO, GPIO_MODE_OUTPUT));
+    ESP_ERROR_CHECK(gpio_set_level(MOTOR_DIR_GPIO, 0));
+}
+
+static void set_motor_pwm_percent(uint32_t duty_percent)
+{
+    const uint32_t max_duty = (1U << LEDC_TIMER_10_BIT) - 1U;
+    const uint32_t duty = (max_duty * duty_percent) / 100U;
+
+    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, duty));
+    ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0));
+}
+
+static void set_motor_direction(bool reverse_direction)
+{
+    ESP_ERROR_CHECK(gpio_set_level(MOTOR_DIR_GPIO, reverse_direction ? 1 : 0));
+}
+
+static int16_t read_big_endian_i16(const uint8_t *buffer)
+{
+    return (int16_t)((buffer[0] << 8) | buffer[1]);
+}
+
+static float read_tilt_degrees(void)
+{
+    const uint8_t start_register = MPU6050_ACCEL_XOUT_H;
+    uint8_t raw_data[6] = {0};
+
+    ESP_ERROR_CHECK(i2c_master_write_read_device(
+        IMU_I2C_PORT,
+        MPU6050_ADDRESS,
+        &start_register,
+        1,
+        raw_data,
+        sizeof(raw_data),
+        pdMS_TO_TICKS(100)));
+
+    const float accel_x = read_big_endian_i16(&raw_data[0]) / MPU6050_ACCEL_SCALE;
+    const float accel_z = read_big_endian_i16(&raw_data[4]) / MPU6050_ACCEL_SCALE;
+
+    return atan2f(accel_x, accel_z) * (180.0f / (float)M_PI);
+}
+
+static uint32_t tilt_to_duty_percent(float tilt_degrees)
+{
+    const float absolute_tilt = fabsf(tilt_degrees);
+    const float clamped_tilt = absolute_tilt > MAX_TILT_DEGREES ? MAX_TILT_DEGREES : absolute_tilt;
+    const float scaled_percent = (clamped_tilt / MAX_TILT_DEGREES) * PWM_DUTY_MAX_PERCENT;
+
+    return (uint32_t)lroundf(scaled_percent);
+}
 
 void app_main(void)
 {
+    ESP_LOGI(TAG, "Application started");
+    ESP_LOGI(TAG, "PWM on GPIO %d at %lu Hz", MOTOR_PWM_GPIO, (unsigned long)PWM_FREQUENCY_HZ);
+    ESP_LOGI(TAG, "DIR on GPIO %d", MOTOR_DIR_GPIO);
+    ESP_LOGI(TAG, "MPU6050 on SDA=%d SCL=%d", IMU_SDA_GPIO, IMU_SCL_GPIO);
+    ESP_LOGI(TAG, "Tilt maps to 0-%lu%% PWM with %.1f deg deadzone",
+             (unsigned long)PWM_DUTY_MAX_PERCENT,
+             (double)TILT_DEADZONE_DEGREES);
 
-    /* Configure the peripheral according to the LED type */
-    configure_led();
+    configure_i2c();
+    wake_mpu6050();
+    configure_motor_pwm();
+    configure_motor_direction();
+    set_motor_direction(false);
+    set_motor_pwm_percent(0);
 
     while (1) {
-        ESP_LOGI(TAG, "Turning the LED %s!", s_led_state == true ? "ON" : "OFF");
-        blink_led();
-        /* Toggle the LED state */
-        s_led_state = !s_led_state;
-        vTaskDelay(CONFIG_BLINK_PERIOD / portTICK_PERIOD_MS);
+        const float tilt_degrees = read_tilt_degrees();
+        const bool in_deadzone = fabsf(tilt_degrees) <= TILT_DEADZONE_DEGREES;
+        const uint32_t duty_percent = in_deadzone ? 0 : tilt_to_duty_percent(tilt_degrees);
+        const bool reverse_direction = tilt_degrees > 0.0f;
+
+        set_motor_direction(reverse_direction);
+        set_motor_pwm_percent(duty_percent);
+
+        ESP_LOGI(
+            TAG,
+            "tilt=%.1f deg dir=%s duty=%lu%%",
+            (double)tilt_degrees,
+            reverse_direction ? "reverse" : "forward",
+            (unsigned long)duty_percent);
+
+        vTaskDelay(CONTROL_LOOP_DELAY);
     }
 }

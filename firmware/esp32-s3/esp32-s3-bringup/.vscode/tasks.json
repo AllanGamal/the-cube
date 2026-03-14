@@ -1,0 +1,40 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ESP32 Build",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-lc",
+        "source /Users/allangamal/.espressif/v5.5.3/esp-idf/export.sh >/dev/null 2>&1 && cd /Users/allangamal/Documents/GitHub/the-cube/firmware/esp32-s3/esp32-s3-bringup && idf.py build"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ESP32 Flash UART",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-lc",
+        "source /Users/allangamal/.espressif/v5.5.3/esp-idf/export.sh >/dev/null 2>&1 && cd /Users/allangamal/Documents/GitHub/the-cube/firmware/esp32-s3/esp32-s3-bringup && idf.py -p /dev/cu.usbmodem5AF71039601 flash"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ESP32 Monitor",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-lc",
+        "source /Users/allangamal/.espressif/v5.5.3/esp-idf/export.sh >/dev/null 2>&1 && cd /Users/allangamal/Documents/GitHub/the-cube/firmware/esp32-s3/esp32-s3-bringup && idf.py -p /dev/cu.usbmodem5AF71039601 monitor"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}
