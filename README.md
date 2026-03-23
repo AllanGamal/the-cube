@@ -1,25 +1,29 @@
 # the-cube
 
-Monorepo for the full self-balancing reaction-wheel project.
+Monorepo for the full self-balancing reaction wheel project. The goal is to build a cube that can balance on two axes using a PID / PD-based controller, and later eventually replace the PID / PD with a CNN.
+This is an attempt to Combine embedded, AI and control system. 
 
-## Structure
+## Phase 1
+Getting reliable read and writes of the GY-521 sensor and the Nidec motor. 
 
-- `firmware/esp32-s3/` contains the ESP32-S3 firmware built with ESP-IDF.
-- `control/simulation/` contains control-system experiments, math models, and tuning work.
-- `control/telemetry/` contains scripts and tools for log parsing and telemetry analysis.
-- `hardware/` contains wiring notes, pin maps, datasheets, and hardware-specific references.
-- `docs/` contains system-level documentation, decisions, and bring-up notes.
+![The Cube prototype](img/image1.png)
 
-## Recommended workflow
+### Sensor readings
+GY-521 readings and prints:
+- raw acceleration
+- gyroscope data
+- tilt angle
 
-1. Create the ESP-IDF project inside `firmware/esp32-s3/`.
-2. Keep motor tests, PWM bring-up, and embedded code inside the firmware folder only.
-3. Keep balancing logic experiments and plots in `control/`.
-4. Document wiring, pin assignments, and verified motor behavior in `hardware/` and `docs/`.
+### 2. Test the motor separately
+Verify that the motor can:
+- spin forward
+- spin backward
+- stop
 
-## First milestones
+### 3. Connect sensor data to motor
+Once the sensor and motor work independently:
+- tilt forward -> motor spins in one direction
+- tilt backward -> motor spins in the other direction
 
-1. Bring up an ESP32-S3 project and flash a known-good example.
-2. Generate stable 20 kHz PWM on the selected GPIO pins.
-3. Verify one motor at a time with safe current limits.
-4. Add telemetry and basic control experiments before attempting self-balancing.
+
+
