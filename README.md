@@ -14,16 +14,34 @@ GY-521 readings and prints:
 - gyroscope data
 - tilt angle
 
-### 2. Test the motor separately
+### Test the motor separately
 Verify that the motor can:
 - spin forward
 - spin backward
 - stop
 
-### 3. Connect sensor data to motor
+### Connect sensor data to motor
 Once the sensor and motor work independently:
 - tilt forward -> motor spins in one direction
 - tilt backward -> motor spins in the other direction
 
+## Phase 2
+Use the tilt data to make the cube start correcting itself.
+
+![The Cube prototype](img/image2.png)
+
+### Add basic control
+Map the tilt angle to motor output:
+- small tilt -> small correction
+- large tilt -> larger correction
+
+### Tune PID / PD
+Adjust the controller so the cube can:
+- react quickly
+- avoid overshooting
+- recover after being pushed
+
+### Reaching balance
+The goal is not perfect balance yet, but the first prototype cant event stand. Lots of oscillations and instability.
 
 

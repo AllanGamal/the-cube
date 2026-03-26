@@ -1,5 +1,6 @@
 {
-    "idf.currentSetup": "/Users/allangamal/.espressif/v5.5.3/esp-idf",
-    "C_Cpp.default.compileCommands": "/Users/allangamal/Documents/GitHub/the-cube/firmware/esp32-s3/esp32-s3-bringup/build/compile_commands.json",
-    "C_Cpp.default.compilerPath": "/Users/allangamal/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20251107/xtensa-esp-elf/bin/xtensa-esp32s3-elf-gcc"
+  "idf.currentSetup": "/Users/allangamal/.espressif/v5.5.3/esp-idf",
+  "C_Cpp.default.compileCommands": "/Users/allangamal/Documents/GitHub/the-cube/firmware/esp32-s3/esp32-s3-bringup/build/compile_commands.json",
+  "C_Cpp.default.compilerPath": "/Users/allangamal/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20251107/xtensa-esp-elf/bin/xtensa-esp32s3-elf-gcc",
+  "C_Cpp_Runner.msvcBatchPath": ""
 }
