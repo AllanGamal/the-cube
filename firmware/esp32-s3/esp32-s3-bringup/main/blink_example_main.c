@@ -28,9 +28,11 @@ static const uint8_t MPU6050_DLPF_CFG_94HZ = 0x02;
 static const uint32_t PWM_FREQUENCY_HZ = 20000;
 static const uint32_t PWM_DUTY_MAX_PERCENT = 100;
 static const float CONTROL_LIMIT = 255.0f;
-static const float BALANCE_KP = 40.0f;
-static const float BALANCE_KD = 4.50f;
+static const float BALANCE_KP = 50.0f;
+static const float BALANCE_KI = 3.0f;
+static const float BALANCE_KD = 10.50f;
 static const float BALANCE_KS = 1.5f;
+static const float INTEGRAL_LIMIT = 100.0f;
 static const float GYRO_RATE_FILTER_ALPHA = 0.40f;
 static const float BRAKE_ANGLE_DEGREES = 0.00f;
 static const float WARN_ANGLE_DEGREES = 5.0f;
@@ -65,6 +67,11 @@ static float clamp_float(float value, float minimum, float maximum)
     }
 
     return value;
+}
+
+static float clamp_symmetric(float value, float limit)
+{
+    return clamp_float(value, -limit, limit);
 }
 
 static float normalize_angle(float raw_angle_degrees, float reference_degrees)
@@ -236,7 +243,7 @@ static void print_plot_header_once(void)
         return;
     }
 
-    //ets_printf("plot,p,d,angle,gyro,speed,control,duty,brake,state\n");
+    //ets_printf("plot,p,i,d,angle,gyro,speed,control,duty,brake,state\n");
     header_printed = true;
 }
 
@@ -248,6 +255,7 @@ void app_main(void)
     float filtered_angle_degrees = 0.0f;
     float filtered_gyro_dps = 0.0f;
     float motor_speed_estimate = 0.0f;
+    float angle_integral = 0.0f;
     bool angle_is_initialized = false;
     bool gyro_filter_is_initialized = false;
     bool limit_state_announced = false;
@@ -262,10 +270,12 @@ void app_main(void)
     ESP_LOGI(TAG, "MPU6050 on SDA=%d SCL=%d", IMU_SDA_GPIO, IMU_SCL_GPIO);
     ESP_LOGI(
         TAG,
-        "Controller gains kp=%.2f kd=%.2f ks=%.2f gyro_alpha=%.2f",
+        "Controller gains kp=%.2f ki=%.2f kd=%.2f ks=%.2f i_limit=%.2f gyro_alpha=%.2f",
         (double)BALANCE_KP,
+        (double)BALANCE_KI,
         (double)BALANCE_KD,
         (double)BALANCE_KS,
+        (double)INTEGRAL_LIMIT,
         (double)GYRO_RATE_FILTER_ALPHA);
 
     configure_i2c();
@@ -322,6 +332,7 @@ void app_main(void)
         const bool outside_warn_angle = fabsf(angle_degrees) > WARN_ANGLE_DEGREES;
         const bool outside_safe_angle = fabsf(angle_degrees) > DISABLE_ANGLE_DEGREES;
         const bool close_to_upright = fabsf(angle_degrees) < BRAKE_ANGLE_DEGREES;
+        const bool control_saturated = fabsf(control_signal) >= CONTROL_LIMIT;
 
         if (outside_warn_angle && !outside_safe_angle && !warn_state_announced) {
             ESP_LOGW(
@@ -343,6 +354,7 @@ void app_main(void)
             warn_state_announced = false;
             brake_enabled = true;
             motor_speed_estimate = 0.0f;
+            angle_integral = 0.0f;
             set_motor_pwm_percent(0);
             set_motor_brake(true);
             if (!limit_state_announced) {
@@ -357,6 +369,7 @@ void app_main(void)
             limit_state_announced = false;
             brake_enabled = true;
             motor_speed_estimate = 0.0f;
+            angle_integral = 0.0f;
             set_motor_pwm_percent(0);
             set_motor_brake(true);
         } else {
@@ -368,7 +381,13 @@ void app_main(void)
                     (double)DISABLE_ANGLE_DEGREES);
                 limit_state_announced = false;
             }
+            if (!control_saturated) {
+                angle_integral += angle_degrees * dt_seconds;
+                angle_integral = clamp_symmetric(angle_integral, INTEGRAL_LIMIT);
+            }
+
             control_signal = -((BALANCE_KP * angle_degrees) +
+                               (BALANCE_KI * angle_integral) +
                                (BALANCE_KD * gyro_for_control_dps) -
                                (BALANCE_KS * motor_speed_estimate));
             control_signal = clamp_float(control_signal, -CONTROL_LIMIT, CONTROL_LIMIT);
@@ -384,8 +403,9 @@ void app_main(void)
         if (!outside_safe_angle && (current_tick - last_log_tick) >= LOG_DELAY) {
             if (PLOT_OUTPUT_ENABLED) {
                 ets_printf(
-                    "plot,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%lu,%d,%d\n",
+                    "plot,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%lu,%d,%d\n",
                     (double)BALANCE_KP,
+                    (double)BALANCE_KI,
                     (double)BALANCE_KD,
                     (double)angle_degrees,
                     (double)gyro_for_control_dps,
@@ -398,10 +418,12 @@ void app_main(void)
 
             ESP_LOGI(
                 TAG,
-                "p=%.2f d=%.2f ks=%.2f angle=%.2f gyro=%.2f speed=%.2f control=%.2f duty=%lu dir=%s brake=%s state=%s",
+                "p=%.2f i=%.2f d=%.2f ks=%.2f i_acc=%.2f angle=%.2f gyro=%.2f speed=%.2f control=%.2f duty=%lu dir=%s brake=%s state=%s",
                 (double)BALANCE_KP,
+                (double)BALANCE_KI,
                 (double)BALANCE_KD,
                 (double)BALANCE_KS,
+                (double)angle_integral,
                 (double)angle_degrees,
                 (double)gyro_for_control_dps,
                 (double)motor_speed_estimate,
