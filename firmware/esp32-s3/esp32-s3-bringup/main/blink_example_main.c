@@ -28,15 +28,15 @@ static const uint8_t MPU6050_DLPF_CFG_94HZ = 0x02;
 static const uint32_t PWM_FREQUENCY_HZ = 20000;
 static const uint32_t PWM_DUTY_MAX_PERCENT = 100;
 static const float CONTROL_LIMIT = 255.0f;
-static const float BALANCE_KP = 50.0f;
-static const float BALANCE_KI = 3.0f;
-static const float BALANCE_KD = 10.50f;
-static const float BALANCE_KS = 1.5f;
+static const float BALANCE_KP = 40.0f;
+static const float BALANCE_KI = 1.0f;
+static const float BALANCE_KD = 12.50f;
+static const float BALANCE_KS = 1.4f;
 static const float INTEGRAL_LIMIT = 100.0f;
 static const float GYRO_RATE_FILTER_ALPHA = 0.40f;
 static const float BRAKE_ANGLE_DEGREES = 0.00f;
 static const float WARN_ANGLE_DEGREES = 5.0f;
-static const float DISABLE_ANGLE_DEGREES = 8.0f;
+static const float DISABLE_ANGLE_DEGREES = 10.0f;
 
 
 static const TickType_t CONTROL_LOOP_DELAY = pdMS_TO_TICKS(10);
@@ -46,8 +46,8 @@ static const uint32_t GYRO_CALIBRATION_SAMPLES = 256;
 
 static const float MPU6050_ACCEL_SCALE = 16384.0f;
 static const float MPU6050_GYRO_SCALE = 131.0f;
-static const float Y_AXIS_UPRIGHT_REFERENCE_DEGREES = 100.0f;
-static const float ANGLE_TRIM_DEGREES = -1.9f;
+static const float Y_AXIS_UPRIGHT_REFERENCE_DEGREES = 0.0f;
+static const float ANGLE_TRIM_DEGREES = -3.0f;
 static const float COMPLEMENTARY_GYRO_WEIGHT = 0.92f;
 static const bool PLOT_OUTPUT_ENABLED = false;
 
