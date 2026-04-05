@@ -23,13 +23,13 @@ static const uint8_t MPU6050_ADDRESS = 0x68;
 static const uint8_t MPU6050_PWR_MGMT_1 = 0x6B;
 static const uint8_t MPU6050_CONFIG = 0x1A; 
 static const uint8_t MPU6050_ACCEL_XOUT_H = 0x3B;
-static const uint8_t MPU6050_DLPF_CFG_94HZ = 0x02;
+static const uint8_t MPU6050_DLPF_CFG_64HZ = 0x02;
 
 static const uint32_t PWM_FREQUENCY_HZ = 20000;
 static const uint32_t PWM_DUTY_MAX_PERCENT = 100;
 static const float CONTROL_LIMIT = 255.0f;
 static const float BALANCE_KP = 40.0f;
-static const float BALANCE_KI = 1.0f;
+static const float BALANCE_KI = 1.3f;
 static const float BALANCE_KD = 10.3f;
 static const float BALANCE_KS = 1.4f;
 static const float INTEGRAL_LIMIT = 100.0f;
@@ -48,7 +48,7 @@ static const float MPU6050_ACCEL_SCALE = 16384.0f;
 static const float MPU6050_GYRO_SCALE = 131.0f;
 static const float Y_AXIS_UPRIGHT_REFERENCE_DEGREES = 0.0f;
 static const float ANGLE_TRIM_DEGREES = -3.0f;
-static const float COMPLEMENTARY_GYRO_WEIGHT = 0.92f;
+static const float COMPLEMENTARY_GYRO_WEIGHT = 0.972f;
 static const bool PLOT_OUTPUT_ENABLED = false;
 
 typedef struct {
@@ -118,7 +118,7 @@ static void wake_mpu6050(void)
 
 static void configure_mpu6050_filter(void)
 {
-    const uint8_t payload[] = {MPU6050_CONFIG, MPU6050_DLPF_CFG_94HZ};
+    const uint8_t payload[] = {MPU6050_CONFIG, MPU6050_DLPF_CFG_64HZ};
 
     ESP_ERROR_CHECK(i2c_master_write_to_device(
         IMU_I2C_PORT,
