@@ -41,7 +41,19 @@ Adjust the controller so the cube can:
 - avoid overshooting
 - recover after being pushed
 
-### Reaching balance
+### Next phase: Reaching balance
 The goal is not perfect balance yet, but the first prototype cant event stand. Lots of oscillations and instability.
 
 
+## Phase 3
+Reaching balance in one axis with a single motor.  
+
+![The Cube prototype](img/gif1.gif)
+
+### Reaching balance
+PD + motor speed control
+- Simple PD controller
+- + estimated motor speed ised to use as dampening effect
+
+### Next phase: Balancing in two axes
+The cube can now balance in one axis with one motor. Next phase is to 3d print another dual-axis mount and add a second motor and control the second axis.
