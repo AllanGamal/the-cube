@@ -56,4 +56,4 @@ PD + motor speed control
 - + estimated motor speed ised to use as dampening effect
 
 ### Next phase: Balancing in two axes
-The cube can now balance in one axis with one motor. Next phase is to 3d print another dual-axis mount and add a second motor and control the second axis.
+The cube can now balance in one axis with one motor. Next phase is to design and 3d print another dual-axis mount and add a second motor and control the second axis.
