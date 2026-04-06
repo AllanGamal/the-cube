@@ -6,7 +6,7 @@ This is an attempt to Combine embedded, AI and control system.
 ## Phase 1
 Getting reliable read and writes of the GY-521 sensor and the Nidec motor. 
 
-![The Cube prototype](img/image1.png)
+<img src="img/image1.png" alt="The Cube prototype" width="50%">
 
 ### Sensor readings
 GY-521 readings and prints:
@@ -28,7 +28,7 @@ Once the sensor and motor work independently:
 ## Phase 2
 Use the tilt data to make the cube start correcting itself.
 
-![The Cube prototype](img/image2.png)
+<img src="img/image2.png" alt="The Cube prototype" width="50%">
 
 ### Add basic control
 Map the tilt angle to motor output:
